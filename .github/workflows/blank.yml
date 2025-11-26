@@ -55,7 +55,6 @@ jobs:
 
       # TẠO USER PREMIUM - (tối ưu mật khẩu)
       - name: 👤 TẠO TÀI KHOẢN PREMIUM
-        shell: powershell
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
