@@ -21,7 +21,7 @@ on:
           - '5_Giờ_(300m)'
           - '5_Giờ_30_Phút_(330m)'
           - '6_Giờ_(360m)'
-          - '90_Day'
+          - '90_Day_(129600m)'
 
 jobs:
   Vanmanhgaming-RDP-Setup:
@@ -31,8 +31,7 @@ jobs:
       - name: KHỞI ĐỘNG HỆ THỐNG
         shell: powershell
         run: |
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          $OutputEncoding = [System.Text.Encoding]::UTF8
+          # Chuyển console sang UTF-8
           chcp 65001 > $null
           
           Write-Host "`n vanmanhgaming RDP SERVER" -ForegroundColor Yellow
