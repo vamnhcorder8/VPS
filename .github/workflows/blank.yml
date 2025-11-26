@@ -25,19 +25,19 @@ on:
 
 jobs:
   Vanmanhgaming-RDP-Setup:
-    runs-on: self-hosted
+    runs-on: windows-latest
     steps:
       # BANNER CHÀO MỪNG
       - name: KHỞI ĐỘNG HỆ THỐNG
         shell: powershell
         run: |
-          # Chuyển console sang UTF-8
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          $OutputEncoding = [System.Text.Encoding]::UTF8
           chcp 65001 > $null
           
           Write-Host "`n vanmanhgaming RDP SERVER" -ForegroundColor Yellow
           Write-Host " Powered by vanmanhgaming" -ForegroundColor Green
           Write-Host " Thời gian: ${{ github.event.inputs.duration }}" -ForegroundColor Magenta
-          Write-Host "─────────────────────────────────────────────`n" -ForegroundColor Cyan
 
       # CẤU HÌNH HỆ THỐNG
       - name: CẤU HÌNH HỆ THỐNG
@@ -262,7 +262,7 @@ jobs:
               "5_Giờ_(300m)"               { $totalMinutes = 300; $displayTime = "5 giờ" }
               "5_Giờ_30_Phút_(330m)"       { $totalMinutes = 330; $displayTime = "5 giờ 30 phút" }
               "6_Giờ_(360m)"               { $totalMinutes = 360; $displayTime = "6 giờ" }
-              "90_Day"                    { $totalMinutes = 129600; $displayTime = "90 ngày" }
+              "90_Day_(129600m)" { $totalMinutes = 129600; $displayTime = "90 ngày" }
           }
           
           # Tính thời gian chính xác
