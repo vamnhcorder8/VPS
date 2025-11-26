@@ -21,10 +21,11 @@ on:
           - '5_Giờ_(300m)'
           - '5_Giờ_30_Phút_(330m)'
           - '6_Giờ_(360m)'
+          - '90_Day'
 
 jobs:
   Vanmanhgaming-RDP-Setup:
-    runs-on: windows-latest
+    runs-on: self-hosted
     steps:
       # BANNER CHÀO MỪNG
       - name: KHỞI ĐỘNG HỆ THỐNG
@@ -138,9 +139,7 @@ jobs:
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
         run: |
-          Write-Host ""
-          Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
-          
+          Write-Host "Cài đặt Tailscale Premium..." -ForegroundColor Yellow
           # Cài đặt Tailscale
           try {
               $msiPath = "$env:TEMP\tailscale-premium.msi"
@@ -151,13 +150,15 @@ jobs:
           } catch {
               Write-Host "│ ❌ Lỗi cài đặt Tailscale" -ForegroundColor Red
           }
+
+          Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
           
           # Chờ dịch vụ khởi động
           Start-Sleep -Seconds 10
           
           # Kết nối Tailscale
           try {
-              & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=ai-stv-premium-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
+              & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=vanmanhgaming-premium-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
               Write-Host "│ ✅ Kết nối Tailscale thành công" -ForegroundColor Green
           } catch {
               Write-Host "│ ❌ Lỗi kết nối Tailscale" -ForegroundColor Red
@@ -256,6 +257,7 @@ jobs:
               "5_Giờ_(300m)"               { $totalMinutes = 300; $displayTime = "5 giờ" }
               "5_Giờ_30_Phút_(330m)"       { $totalMinutes = 330; $displayTime = "5 giờ 30 phút" }
               "6_Giờ_(360m)"               { $totalMinutes = 360; $displayTime = "6 giờ" }
+              "90_Day"                    { $totalMinutes = 129600; $displayTime = "90 ngày" }
           }
           
           # Tính thời gian chính xác
@@ -288,79 +290,81 @@ jobs:
       # DUY TRÌ PHIÊN LÀM VIỆC Và ỔN ĐỊNH
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
         run: |
-          $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
-          $totalMinutes = $env:TOTAL_MINUTES
-          
-          # Tính thời gian chính xác
-          $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
-          $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-          $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
-          
-          Write-Host ""
-          Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
-          Write-Host "💎 Phiên: vanmanhgaming" -ForegroundColor Magenta
-          Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
-          Write-Host "🕐 Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor Green
-          Write-Host "🕐 Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor Green
-          Write-Host ""
-          
-          # Tạo process giám sát hệ thống
-          $monitorScript = {
-              $lastLogTime = Get-Date
-              while ($true) {
-                  $currentTime = Get-Date
-                  
-                  # Log trạng thái mỗi 2 phút
-                  if (($currentTime - $lastLogTime).TotalMinutes -ge 2) {
-                      # Kiểm tra dịch vụ
-                      $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
-                      $rdpConnections = Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue | Where-Object {$_.State -eq 'Established'}
-                      
-                      Write-Host "[$($currentTime.ToString('HH:mm:ss'))] 📊 Trạng thái - RDP: $($termService.Status), Kết nối: $($rdpConnections.Count)" -ForegroundColor Blue
-                      $lastLogTime = $currentTime
-                  }
-                  
-                  # Kiểm tra và khởi động lại dịch vụ nếu cần
-                  $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
-                  if ($termService.Status -ne 'Running') {
-                      Write-Host "[$($currentTime.ToString('HH:mm:ss'))] 🔄 Khởi động lại TermService..." -ForegroundColor Yellow
-                      Start-Service -Name TermService -ErrorAction SilentlyContinue
-                  }
-                  
-                  Start-Sleep -Seconds 30
-              }
-          }
-          
-          # Chạy monitor trong background
-          Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
-          
-          # Hiển thị timer chính
-          $frames = @('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
-          $colors = @('Red', 'Yellow', 'Green', 'Cyan', 'Blue', 'Magenta')
-          $startTime = Get-Date
-          
-          do {
-              $thoiGianHienTai = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-              $thoiGianConLai = $thoiGianKetThuc - $thoiGianHienTai
-              
-              $gioConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalHours))
-              $phutConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalMinutes % 60))
-              $giayConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalSeconds % 60))
-              
-              $frame = $frames[([int]((Get-Date) - $startTime).TotalSeconds) % $frames.Length]
-              $color = $colors[([int]((Get-Date) - $startTime).TotalMinutes) % $colors.Length]
-              
-              Write-Host "`r$frame [$($thoiGianHienTai.ToString('HH:mm:ss'))] Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor $color
-              
-              Start-Sleep -Seconds 5
-              
-          } while ($thoiGianConLai.TotalSeconds -gt 0)
-          
-          Write-Host ""
-          Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
-          
-          # Dọn dẹp jobs
-          Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
+            $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
+            $totalMinutes = $env:TOTAL_MINUTES
+
+            # Tính thời gian chính xác
+            $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
+            $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+            $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
+
+            Write-Host ""
+            Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
+            Write-Host "💎 Phiên: vanmanhgaming" -ForegroundColor Magenta
+            Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
+            Write-Host "🕐 Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor Green
+            Write-Host "🕐 Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor Green
+            Write-Host ""
+
+            # Tạo process giám sát hệ thống (giữ nguyên như trước)
+            $monitorScript = {
+                $lastLogTime = Get-Date
+                while ($true) {
+                    $currentTime = Get-Date
+
+                    if (($currentTime - $lastLogTime).TotalMinutes -ge 2) {
+                        $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
+                        $rdpConnections = Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue | Where-Object {$_.State -eq 'Established'}
+                        Write-Host "[$($currentTime.ToString('HH:mm:ss'))] 📊 Trạng thái - RDP: $($termService.Status), Kết nối: $($rdpConnections.Count)" -ForegroundColor Blue
+                        $lastLogTime = $currentTime
+                    }
+
+                    $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
+                    if ($termService.Status -ne 'Running') {
+                        Write-Host "[$($currentTime.ToString('HH:mm:ss'))] 🔄 Khởi động lại TermService..." -ForegroundColor Yellow
+                        Start-Service -Name TermService -ErrorAction SilentlyContinue
+                    }
+
+                    Start-Sleep -Seconds 30
+                }
+            }
+            Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
+
+            # Hiển thị timer chính
+            $frames = @('⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏')
+            $colors = @('Red','Yellow','Green','Cyan','Blue','Magenta')
+            $startTime = Get-Date
+
+            # Chạy 24/7 nếu 90_Day
+            $infiniteRun = $false
+            if ($totalMinutes -ge 129600) { $infiniteRun = $true }  # 90 ngày = 129600 phút
+
+            do {
+                $thoiGianHienTai = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+                $thoiGianConLai = $thoiGianKetThuc - $thoiGianHienTai
+
+                $gioConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalHours))
+                $phutConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalMinutes % 60))
+                $giayConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalSeconds % 60))
+
+                $frame = $frames[([int]((Get-Date) - $startTime).TotalSeconds) % $frames.Length]
+                $color = $colors[([int]((Get-Date) - $startTime).TotalMinutes) % $colors.Length]
+
+                if ($infiniteRun) {
+                    Write-Host "`r$frame [$($thoiGianHienTai.ToString('HH:mm:ss'))] 🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor Green
+                } else {
+                    Write-Host "`r$frame [$($thoiGianHienTai.ToString('HH:mm:ss'))] Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor $color
+                }
+
+                Start-Sleep -Seconds 5
+
+            } while ($infiniteRun -or $thoiGianConLai.TotalSeconds -gt 0)
+
+            Write-Host ""
+            Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
+
+            # Dọn dẹp jobs
+            Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
 
       # DỌN DẸP CUỐI CÙNG
       - name: DỌN DẸP HỆ THỐNG
