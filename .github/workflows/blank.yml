@@ -295,15 +295,13 @@ jobs:
             $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
             $startTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
             $endTime = $startTime.AddMinutes($totalMinutes)
-
             Write-Host ""
             Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
             Write-Host "💎 Phiên: $env:RDP_USER" -ForegroundColor Magenta
             Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
-            Write-Host "🕐 Bắt đầu: $($startTime.ToString('HH:mm:ss'))" -ForegroundColor Green
-            Write-Host "🕐 Kết thúc: $($endTime.ToString('HH:mm:ss'))" -ForegroundColor Green
+            Write-Host "🕐 Bắt đầu: $($startTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
+            Write-Host "🕐 Kết thúc: $($endTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
             Write-Host ""
-
             # Giám sát TermService
             $monitorScript = {
                 while ($true) {
@@ -313,32 +311,25 @@ jobs:
                 }
             }
             Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
-
             # Kiểm tra 24/7 chỉ khi TOTAL_MINUTES >= 129600
             $infiniteRun = $totalMinutes -ge 129600
-
             do {
                 $currentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
                 $timeLeft = $endTime - $currentTime
-
-                $hours = [math]::Max(0, [math]::Floor($timeLeft.TotalHours))
+                $days = [math]::Max(0, [math]::Floor($timeLeft.TotalDays))
+                $hours = [math]::Max(0, [math]::Floor($timeLeft.TotalHours % 24))
                 $minutes = [math]::Max(0, [math]::Floor($timeLeft.TotalMinutes % 60))
                 $seconds = [math]::Max(0, [math]::Floor($timeLeft.TotalSeconds % 60))
-
                 if ($infiniteRun) {
-                    Write-Host ("🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: {0} giờ {1} phút {2} giây" -f $hours, $minutes, $seconds) -ForegroundColor Green
+                    Write-Host ("🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Green
                 } else {
-                    Write-Host ("⏳ Thời gian còn lại: {0} giờ {1} phút {2} giây" -f $hours, $minutes, $seconds) -ForegroundColor Cyan
+                    Write-Host ("⏳ Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Cyan
                 }
-
                 Start-Sleep -Seconds 5
             } while ($infiniteRun -or $timeLeft.TotalSeconds -gt 0)
-
             Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
-
             # Dọn dẹp Job giám sát
             Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
-
 
       # DỌN DẸP CUỐI CÙNG
       - name: DỌN DẸP HỆ THỐNG
