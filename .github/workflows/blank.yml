@@ -293,60 +293,50 @@ jobs:
         run: |
             $totalMinutes = [int]$env:TOTAL_MINUTES
             $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
-            $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-            $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
+            $startTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+            $endTime = $startTime.AddMinutes($totalMinutes)
 
             Write-Host ""
             Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
             Write-Host "💎 Phiên: $env:RDP_USER" -ForegroundColor Magenta
             Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
-            Write-Host "🕐 Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor Green
-            Write-Host "🕐 Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor Green
+            Write-Host "🕐 Bắt đầu: $($startTime.ToString('HH:mm:ss'))" -ForegroundColor Green
+            Write-Host "🕐 Kết thúc: $($endTime.ToString('HH:mm:ss'))" -ForegroundColor Green
             Write-Host ""
 
-            # ---------------------
-            # Tạo job giám sát TermService
+            # Giám sát TermService
             $monitorScript = {
                 while ($true) {
                     $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
-                    if ($termService.Status -ne 'Running') {
-                        Write-Host "🔄 Khởi động lại TermService..." -ForegroundColor Yellow
-                        Start-Service -Name TermService -ErrorAction SilentlyContinue
-                    }
-                    $rdpConnections = Get-NetTCPConnection -LocalPort 3389 -ErrorAction SilentlyContinue | Where-Object {$_.State -eq 'Established'}
-                    Write-Host "📊 RDP: $($termService.Status), Kết nối: $($rdpConnections.Count)" -ForegroundColor Blue
+                    if ($termService.Status -ne 'Running') { Start-Service -Name TermService -ErrorAction SilentlyContinue }
                     Start-Sleep -Seconds 30
                 }
             }
             Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
 
-            # ---------------------
-            # Hiển thị countdown / timer
-            $infiniteRun = $false
-            if ($totalMinutes -ge 129600) { $infiniteRun = $true }
+            # Kiểm tra 24/7 chỉ khi TOTAL_MINUTES >= 129600
+            $infiniteRun = $totalMinutes -ge 129600
 
             do {
-                $thoiGianHienTai = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-                $thoiGianConLai = $thoiGianKetThuc - $thoiGianHienTai
+                $currentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+                $timeLeft = $endTime - $currentTime
 
-                $gioConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalHours))
-                $phutConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalMinutes % 60))
-                $giayConLai = [math]::Max(0, [math]::Floor($thoiGianConLai.TotalSeconds % 60))
+                $hours = [math]::Max(0, [math]::Floor($timeLeft.TotalHours))
+                $minutes = [math]::Max(0, [math]::Floor($timeLeft.TotalMinutes % 60))
+                $seconds = [math]::Max(0, [math]::Floor($timeLeft.TotalSeconds % 60))
 
                 if ($infiniteRun) {
-                    Write-Host "`r🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor Green
+                    Write-Host ("🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: {0} giờ {1} phút {2} giây" -f $hours, $minutes, $seconds) -ForegroundColor Green
                 } else {
-                    Write-Host "`r⏳ Thời gian còn lại: $gioConLai giờ $phutConLai phút $giayConLai giây" -NoNewline -ForegroundColor Cyan
+                    Write-Host ("⏳ Thời gian còn lại: {0} giờ {1} phút {2} giây" -f $hours, $minutes, $seconds) -ForegroundColor Cyan
                 }
 
                 Start-Sleep -Seconds 5
+            } while ($infiniteRun -or $timeLeft.TotalSeconds -gt 0)
 
-            } while ($infiniteRun -or $thoiGianConLai.TotalSeconds -gt 0)
-
-            Write-Host ""
             Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
 
-            # Dọn dẹp job giám sát
+            # Dọn dẹp Job giám sát
             Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
 
 
