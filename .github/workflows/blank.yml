@@ -1,4 +1,4 @@
-name: 🚀 SEVER vanmanhgaming
+name: 🚀 SERVER vanmanhgaming
 
 on:
   workflow_dispatch:
@@ -55,6 +55,7 @@ jobs:
 
       # TẠO USER PREMIUM - (tối ưu mật khẩu)
       - name: 👤 TẠO TÀI KHOẢN PREMIUM
+        shell: powershell
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
@@ -138,6 +139,7 @@ jobs:
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        shell: powershell
         run: |
           Write-Host "Cài đặt Tailscale Premium..." -ForegroundColor Yellow
           # Cài đặt Tailscale
@@ -188,6 +190,7 @@ jobs:
           }
 
       - name: 🌐 KIỂM TRA KẾT NỐI ĐẾN TAILSCALE
+        shell: powershell
         run: |
           # Kích hoạt Tailscale bằng Auth Key và đặt tên máy theo ID của GitHub Runner
           Write-Host "🔧 Đang khởi tạo Tailscale..."
@@ -226,15 +229,17 @@ jobs:
               exit 1
           }
 
-     # DỌN DẸP
+      # DỌN DẸP
       - name: 🧹 DỌN DẸP FILE TẠM
         if: always()
+        shell: powershell
         run: |
           Remove-Item "$env:TEMP\rdp_password.txt" -Force -ErrorAction SilentlyContinue
           Write-Host "🧹 Đã dọn dẹp file tạm thành công!" -ForegroundColor Green
 
       # HIỂN THỊ GIAO DIỆN ĐẸP
       - name: 🎉 THÔNG TIN KẾT NỐI
+        shell: powershell
         run: |
           # Lấy mật khẩu từ biến môi trường (được thiết lập trong bước tạo user)
           $matKhau = $env:RDP_PASS
@@ -289,8 +294,9 @@ jobs:
 
       # DUY TRÌ PHIÊN LÀM VIỆC Và ỔN ĐỊNH
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
+        shell: powershell
         run: |
-            $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
+            $matKhau = $env:RDP_PASS
             $totalMinutes = $env:TOTAL_MINUTES
 
             # Tính thời gian chính xác
