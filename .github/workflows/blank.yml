@@ -138,9 +138,10 @@ jobs:
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
-        shell: powershell
         run: |
-          Write-Host "Cài đặt Tailscale Premium..." -ForegroundColor Yellow
+          Write-Host ""
+          Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
+          
           # Cài đặt Tailscale
           try {
               $msiPath = "$env:TEMP\tailscale-premium.msi"
@@ -151,15 +152,13 @@ jobs:
           } catch {
               Write-Host "│ ❌ Lỗi cài đặt Tailscale" -ForegroundColor Red
           }
-
-          Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
           
           # Chờ dịch vụ khởi động
           Start-Sleep -Seconds 10
           
           # Kết nối Tailscale
           try {
-              & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=vanmanhgaming-premium-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
+              & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=ai-stv-premium-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
               Write-Host "│ ✅ Kết nối Tailscale thành công" -ForegroundColor Green
           } catch {
               Write-Host "│ ❌ Lỗi kết nối Tailscale" -ForegroundColor Red
@@ -189,7 +188,6 @@ jobs:
           }
 
       - name: 🌐 KIỂM TRA KẾT NỐI ĐẾN TAILSCALE
-        shell: powershell
         run: |
           # Kích hoạt Tailscale bằng Auth Key và đặt tên máy theo ID của GitHub Runner
           Write-Host "🔧 Đang khởi tạo Tailscale..."
@@ -216,6 +214,17 @@ jobs:
 
           # Xuất IP sang biến môi trường để dùng ở bước tiếp theo
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+
+      # KIỂM TRA KẾT NỐI RDP
+      - name: KIỂM TRA KẾT NỐI RDP
+        shell: pwsh
+        run: |
+          Write-Host " Địa chỉ Tailscale: $env:TAILSCALE_IP"
+          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389 -WarningAction SilentlyContinue
+          if (-not $testResult.TcpTestSucceeded) {
+              Write-Error " Không thể kết nối TCP đến cổng RDP (3389)."
+              exit 1
+          }
 
       # KIỂM TRA KẾT NỐI RDP
       - name: KIỂM TRA KẾT NỐI RDP
