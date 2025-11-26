@@ -29,7 +29,7 @@ jobs:
     steps:
       # BANNER CHÀO MỪNG
       - name: KHỞI ĐỘNG HỆ THỐNG
-        shell: pwsh
+        shell: powershell
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -38,10 +38,11 @@ jobs:
           Write-Host "`n vanmanhgaming RDP SERVER" -ForegroundColor Yellow
           Write-Host " Powered by vanmanhgaming" -ForegroundColor Green
           Write-Host " Thời gian: ${{ github.event.inputs.duration }}" -ForegroundColor Magenta
+          Write-Host "─────────────────────────────────────────────`n" -ForegroundColor Cyan
 
       # CẤU HÌNH HỆ THỐNG
       - name: CẤU HÌNH HỆ THỐNG
-        shell: pwsh
+        shell: powershell
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
@@ -55,7 +56,7 @@ jobs:
 
       # TẠO USER PREMIUM - (tối ưu mật khẩu)
       - name: 👤 TẠO TÀI KHOẢN PREMIUM
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
@@ -139,7 +140,7 @@ jobs:
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Cài đặt Tailscale Premium..." -ForegroundColor Yellow
           # Cài đặt Tailscale
@@ -190,7 +191,7 @@ jobs:
           }
 
       - name: 🌐 KIỂM TRA KẾT NỐI ĐẾN TAILSCALE
-        shell: pwsh
+        shell: powershell
         run: |
           # Kích hoạt Tailscale bằng Auth Key và đặt tên máy theo ID của GitHub Runner
           Write-Host "🔧 Đang khởi tạo Tailscale..."
@@ -220,7 +221,7 @@ jobs:
 
       # KIỂM TRA KẾT NỐI RDP
       - name: KIỂM TRA KẾT NỐI RDP
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host " Địa chỉ Tailscale: $env:TAILSCALE_IP"
           $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389 -WarningAction SilentlyContinue
@@ -232,14 +233,14 @@ jobs:
       # DỌN DẸP
       - name: 🧹 DỌN DẸP FILE TẠM
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           Remove-Item "$env:TEMP\rdp_password.txt" -Force -ErrorAction SilentlyContinue
           Write-Host "🧹 Đã dọn dẹp file tạm thành công!" -ForegroundColor Green
 
       # HIỂN THỊ GIAO DIỆN ĐẸP
       - name: 🎉 THÔNG TIN KẾT NỐI
-        shell: pwsh
+        shell: powershell
         run: |
           # Lấy mật khẩu từ biến môi trường (được thiết lập trong bước tạo user)
           $matKhau = $env:RDP_PASS
@@ -294,7 +295,7 @@ jobs:
 
       # DUY TRÌ PHIÊN LÀM VIỆC Và ỔN ĐỊNH
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
-        shell: pwsh
+        shell: powershell
         run: |
             $matKhau = $env:RDP_PASS
             $totalMinutes = $env:TOTAL_MINUTES
@@ -375,7 +376,7 @@ jobs:
       # DỌN DẸP CUỐI CÙNG
       - name: DỌN DẸP HỆ THỐNG
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host ""
           Write-Host " ĐANG DỌN DẸP HỆ THỐNG..." -ForegroundColor Yellow
