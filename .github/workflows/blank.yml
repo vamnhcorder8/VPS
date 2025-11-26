@@ -289,7 +289,7 @@ jobs:
 
         # DUY TRÌ PHIÊN LÀM VIỆC ỔN ĐỊNH Và 90 ngày / 24/7
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
-        shell: powershell
+        shell: pwsh
         run: |
             $totalMinutes = [int]$env:TOTAL_MINUTES
             $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
@@ -338,7 +338,6 @@ jobs:
 
             # Dọn dẹp Job giám sát
             Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
-
 
 
       # DỌN DẸP CUỐI CÙNG
