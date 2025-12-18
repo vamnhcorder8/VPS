@@ -58,55 +58,37 @@ jobs:
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
           
-            Write-Host ""
-            Write-Host "🔐 ĐANG ĐẶT MẬT KHẨU" -ForegroundColor Yellow
-
-            if ($env:CUSTOM_RDP_PASS) {
-                $matKhau = $env:CUSTOM_RDP_PASS
-                Write-Host "│ ℹ️ Dùng mật khẩu từ ENV" -ForegroundColor Blue
-            } else {
-                $matKhau = "vanmanhgaming"
-                Write-Host "│ ℹ️ Dùng mật khẩu mặc định" -ForegroundColor Blue
-            }
-
-            $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
-
-            Set-LocalUser `
-                -Name "vanmanhgaming" `
-                -Password $securePass `
-                -PasswordNeverExpires $true
-
-            Write-Host "│ ✅ Đã đặt mật khẩu & không hết hạn" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "🔐 ĐANG ĐẶT MẬT KHẨU" -ForegroundColor Yellow
 
           # Nếu người dùng đặt mật khẩu tùy chỉnh (ví dụ bằng secret) thì ưu tiên dùng
           if ($env:CUSTOM_RDP_PASS) {
               $matKhau = $env:CUSTOM_RDP_PASS
-              Write-Host "│ ℹ️  Dùng mật khẩu tùy chỉnh từ env" -ForegroundColor Blue
+              Write-Host "│ ℹ️ Dùng mật khẩu tùy chỉnh từ env" -ForegroundColor Blue
           } else {
-              $matKhau = New-PremiumPassword
+              $matKhau = "vanmanhgaming"  # Hoặc dùng New-PremiumPassword nếu có định nghĩa
+              Write-Host "│ ℹ️ Dùng mật khẩu mặc định" -ForegroundColor Blue
           }
 
           $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
           
           # Xóa user cũ nếu tồn tại
           try {
-              Remove-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
+              Get-LocalUser -Name "vanmanhgaming" -ErrorAction Stop | Out-Null
+              Remove-LocalUser -Name "vanmanhgaming"
               Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
           } catch {
-              Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
+              Write-Host "│ ℹ️ Không có user cũ để xóa" -ForegroundColor Blue
           }
           
           # Tạo user mới với đầy đủ quyền
           try {
-              New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account"
+              New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account" -NoPassword $false
               Write-Host "│ ✅ Đã tạo user mới" -ForegroundColor Green
               
-              # Đặt password không bao giờ hết hạn (dùng Set-LocalUser nếu cần)
-              try {
-                  Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
-              } catch {
-                  # Nếu môi trường không hỗ trợ Set-LocalUser, bỏ qua an toàn
-              }
+              # Đặt password không bao giờ hết hạn
+              Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true
+              Write-Host "│ ✅ Đã đặt mật khẩu không hết hạn" -ForegroundColor Green
 
               # Thêm vào các nhóm cần thiết
               Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
