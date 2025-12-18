@@ -28,7 +28,7 @@ jobs:
     steps:
       # BANNER CHÀO MỪNG
       - name: KHỞI ĐỘNG HỆ THỐNG
-        shell: powershell
+        shell: pwsh
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -40,7 +40,7 @@ jobs:
 
       # CẤU HÌNH HỆ THỐNG
       - name: CẤU HÌNH HỆ THỐNG
-        shell: powershell
+        shell: pwsh
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
@@ -52,75 +52,71 @@ jobs:
           Start-Service TermService
           Write-Host " Cấu hình RDP hoàn tất" -ForegroundColor Green
 
-
-
-
-     # TẠO USER PREMIUM - (tối ưu mật khẩu)
+      # TẠO USER PREMIUM - (mật khẩu cố định)
       - name: 👤 TẠO TÀI KHOẢN PREMIUM
+        shell: pwsh
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
-          
+
           Write-Host ""
           Write-Host "🔐 ĐANG ĐẶT MẬT KHẨU" -ForegroundColor Yellow
 
-          # Nếu người dùng đặt mật khẩu tùy chỉnh (ví dụ bằng secret) thì ưu tiên dùng
-          if ($env:CUSTOM_RDP_PASS) {
-              $matKhau = $env:CUSTOM_RDP_PASS
-              Write-Host "│ ℹ️ Dùng mật khẩu tùy chỉnh từ env" -ForegroundColor Blue
-          } else {
-              $matKhau = "vanmanhgaming"  # Hoặc dùng New-PremiumPassword nếu có định nghĩa
-              Write-Host "│ ℹ️ Dùng mật khẩu mặc định" -ForegroundColor Blue
-          }
-
+          # Mật khẩu cố định
+          $matKhau = "vanmanhgaming"
           $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
-          
+
           # Xóa user cũ nếu tồn tại
           try {
               Remove-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
               Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
+              Start-Sleep -Seconds 2
           } catch {
               Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
           }
-          
+
           # Tạo user mới với đầy đủ quyền
           try {
-              New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account"
+              New-LocalUser `
+                  -Name "vanmanhgaming" `
+                  -Password $securePass `
+                  -FullName "vanmanhgaming Premium" `
+                  -Description "vanmanhgaming Premium Account" `
+                  -AccountNeverExpires `
+                  -ErrorAction Stop
+
               Write-Host "│ ✅ Đã tạo user mới" -ForegroundColor Green
-              
-              # Đặt password không bao giờ hết hạn (dùng Set-LocalUser nếu cần)
-              try {
-                  Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
-              } catch {
-                  # Nếu môi trường không hỗ trợ Set-LocalUser, bỏ qua an toàn
-              }
+              Start-Sleep -Seconds 1
+
+              # Đặt password không bao giờ hết hạn
+              Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
 
               # Thêm vào các nhóm cần thiết
               Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-              Add-LocalGroupMember -Group "Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-              
+
               # Kích hoạt user
-              Enable-LocalUser -Name "vanmanhgaming"
-              
+              Enable-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
+
               Write-Host "│ ✅ Đã cấp quyền Administrator & RDP" -ForegroundColor Green
-              
+
           } catch {
               Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
               exit 1
           }
-          
-          # Lưu thông tin (cẩn trọng nếu repo public)
+
+          # Lưu thông tin
           echo "RDP_USER=vanmanhgaming" >> $env:GITHUB_ENV
           echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
           echo "$matKhau" > $env:TEMP\rdp_password.txt
-          
+
           Write-Host "✅ Tài khoản: vanmanhgaming đã sẵn sàng" -ForegroundColor Green
 
       # TAILSCALE PREMIUM
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        shell: pwsh
         run: |
           Write-Host ""
           Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
@@ -170,34 +166,6 @@ jobs:
               echo "TAILSCALE_IP=localhost" >> $env:GITHUB_ENV
           }
 
-      - name: 🌐 KIỂM TRA KẾT NỐI ĐẾN TAILSCALE
-        run: |
-          # Kích hoạt Tailscale bằng Auth Key và đặt tên máy theo ID của GitHub Runner
-          Write-Host "🔧 Đang khởi tạo Tailscale..."
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
-
-          # Chờ Tailscale cấp địa chỉ IP
-          Write-Host "⏳ Đang chờ Tailscale cấp IP..."
-          $tsIP = $null
-          $retries = 0
-
-          while (-not $tsIP -and $retries -lt 10) {
-              $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-              Start-Sleep -Seconds 5
-              $retries++
-          }
-
-          # Nếu không lấy được địa chỉ IP thì báo lỗi và thoát
-          if (-not $tsIP) {
-              Write-Error "❌ Không thể lấy địa chỉ IP từ Tailscale. Dừng tiến trình."
-              exit 1
-          }
-
-          Write-Host "✅ Đã nhận IP Tailscale: $tsIP" -ForegroundColor Green
-
-          # Xuất IP sang biến môi trường để dùng ở bước tiếp theo
-          echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
-
       # KIỂM TRA KẾT NỐI RDP
       - name: KIỂM TRA KẾT NỐI RDP
         shell: pwsh
@@ -209,15 +177,17 @@ jobs:
               exit 1
           }
 
-     # DỌN DẸP
+      # DỌN DẸP
       - name: 🧹 DỌN DẸP FILE TẠM
         if: always()
+        shell: pwsh
         run: |
           Remove-Item "$env:TEMP\rdp_password.txt" -Force -ErrorAction SilentlyContinue
           Write-Host "🧹 Đã dọn dẹp file tạm thành công!" -ForegroundColor Green
 
       # HIỂN THỊ GIAO DIỆN ĐẸP
       - name: 🎉 THÔNG TIN KẾT NỐI
+        shell: pwsh
         run: |
           # Lấy mật khẩu từ biến môi trường (được thiết lập trong bước tạo user)
           $matKhau = $env:RDP_PASS
@@ -269,54 +239,54 @@ jobs:
           # Lưu thời gian vào biến môi trường
           echo "TOTAL_MINUTES=$totalMinutes" >> $env:GITHUB_ENV
 
-        # DUY TRÌ PHIÊN LÀM VIỆC ỔN ĐỊNH Và 90 ngày / 24/7
+      # DUY TRÌ PHIÊN LÀM VIỆC ỔN ĐỊNH Và 90 ngày / 24/7
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
         shell: pwsh
         run: |
-            $totalMinutes = [int]$env:TOTAL_MINUTES
-            $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
-            $startTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-            $endTime = $startTime.AddMinutes($totalMinutes)
-            Write-Host ""
-            Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
-            Write-Host "💎 Phiên: $env:RDP_USER" -ForegroundColor Magenta
-            Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
-            Write-Host "🕐 Bắt đầu: $($startTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
-            Write-Host "🕐 Kết thúc: $($endTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
-            Write-Host ""
-            # Giám sát TermService
-            $monitorScript = {
-                while ($true) {
-                    $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
-                    if ($termService.Status -ne 'Running') { Start-Service -Name TermService -ErrorAction SilentlyContinue }
-                    Start-Sleep -Seconds 30
-                }
-            }
-            Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
-            # Kiểm tra 24/7 chỉ khi TOTAL_MINUTES >= 43200
-            $infiniteRun = $totalMinutes -ge 43200
-            do {
-                $currentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
-                $timeLeft = $endTime - $currentTime
-                $days = [math]::Max(0, [math]::Floor($timeLeft.TotalDays))
-                $hours = [math]::Max(0, [math]::Floor($timeLeft.TotalHours % 24))
-                $minutes = [math]::Max(0, [math]::Floor($timeLeft.TotalMinutes % 60))
-                $seconds = [math]::Max(0, [math]::Floor($timeLeft.TotalSeconds % 60))
-                if ($infiniteRun) {
-                    Write-Host ("🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Green
-                } else {
-                    Write-Host ("⏳ Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Cyan
-                }
-                Start-Sleep -Seconds 5
-            } while ($infiniteRun -or $timeLeft.TotalSeconds -gt 0)
-            Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
-            # Dọn dẹp Job giám sát
-            Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
+          $totalMinutes = [int]$env:TOTAL_MINUTES
+          $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
+          $startTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+          $endTime = $startTime.AddMinutes($totalMinutes)
+          Write-Host ""
+          Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
+          Write-Host "💎 Phiên: $env:RDP_USER" -ForegroundColor Magenta
+          Write-Host "🔗 Kết nối: $env:TAILSCALE_IP" -ForegroundColor Cyan
+          Write-Host "🕐 Bắt đầu: $($startTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
+          Write-Host "🕐 Kết thúc: $($endTime.ToString('dd/MM/yyyy HH:mm:ss'))" -ForegroundColor Green
+          Write-Host ""
+          # Giám sát TermService
+          $monitorScript = {
+              while ($true) {
+                  $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
+                  if ($termService.Status -ne 'Running') { Start-Service -Name TermService -ErrorAction SilentlyContinue }
+                  Start-Sleep -Seconds 30
+              }
+          }
+          Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
+          # Kiểm tra 24/7 chỉ khi TOTAL_MINUTES >= 43200
+          $infiniteRun = $totalMinutes -ge 43200
+          do {
+              $currentTime = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+              $timeLeft = $endTime - $currentTime
+              $days = [math]::Max(0, [math]::Floor($timeLeft.TotalDays))
+              $hours = [math]::Max(0, [math]::Floor($timeLeft.TotalHours % 24))
+              $minutes = [math]::Max(0, [math]::Floor($timeLeft.TotalMinutes % 60))
+              $seconds = [math]::Max(0, [math]::Floor($timeLeft.TotalSeconds % 60))
+              if ($infiniteRun) {
+                  Write-Host ("🟢 Chế độ 24/7 đang chạy... Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Green
+              } else {
+                  Write-Host ("⏳ Thời gian còn lại: {0} ngày {1} giờ {2} phút {3} giây" -f $days, $hours, $minutes, $seconds) -ForegroundColor Cyan
+              }
+              Start-Sleep -Seconds 5
+          } while ($infiniteRun -or $timeLeft.TotalSeconds -gt 0)
+          Write-Host "🎯 ĐÃ HẾT THỜI GIAN - TỰ ĐỘNG DỪNG!" -ForegroundColor Red
+          # Dọn dẹp Job giám sát
+          Get-Job -Name "SystemMonitor" -ErrorAction SilentlyContinue | Stop-Job -PassThru | Remove-Job -Force
 
       # DỌN DẸP CUỐI CÙNG
       - name: DỌN DẸP HỆ THỐNG
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host ""
           Write-Host " ĐANG DỌN DẸP HỆ THỐNG..." -ForegroundColor Yellow
