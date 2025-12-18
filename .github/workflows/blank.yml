@@ -21,6 +21,7 @@ on:
           - '5_Giờ_(300m)'
           - '5_Giờ_30_Phút_(330m)'
           - '6_Giờ_(360m)'
+
 jobs:
   Vanmanhgaming-RDP-Setup:
     runs-on: windows-latest
@@ -51,65 +52,91 @@ jobs:
           Start-Service TermService
           Write-Host " Cấu hình RDP hoàn tất" -ForegroundColor Green
 
-      # TẠO USER PREMIUM - (mật khẩu cố định không giới hạn)
-      - name: 👤 TẠO TÀI KHOẢN PREMIUM
+      # TẠO USER PREMIUM - (tối ưu mật khẩu)
+      - name: 👤 RESET & TẠO TÀI KHOẢN PREMIUM
         run: |
-          Write-Host ""
-          Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
-          
-          # Disable password complexity
-          Write-Host "│ ℹ️  Disabling password complexity requirements" -ForegroundColor Blue
-          secedit /export /cfg c:\sec.cfg
-          (Get-Content c:\sec.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content c:\sec.cfg
-          secedit /configure /db $env:windir\security\new.sdb /cfg c:\sec.cfg /areas SECURITYPOLICY
-          Remove-Item c:\sec.cfg -Force -ErrorAction SilentlyContinue
-          
-          $matKhau = "vanmanhgaming"
-          Write-Host "│ ℹ️  Mật khẩu cố định không giới hạn: $matKhau" -ForegroundColor Blue
+            Write-Host ""
+            Write-Host "🧹 ĐANG XÓA TOÀN BỘ USER CŨ (TRỪ ADMIN MẶC ĐỊNH)" -ForegroundColor Yellow
 
-          $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
-          
-          # Xóa user cũ nếu tồn tại
-          try {
-              Remove-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
-              Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
-          } catch {
-              Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
-          }
-          
-          # Tạo user mới với đầy đủ quyền
-          try {
-              New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account"
-              Write-Host "│ ✅ Đã tạo user mới" -ForegroundColor Green
-              
-              # Đặt password không bao giờ hết hạn (dùng Set-LocalUser nếu cần)
-              try {
-                  Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
-              } catch {
-                  # Nếu môi trường không hỗ trợ Set-LocalUser, bỏ qua an toàn
-              }
+            # Danh sách user cần giữ lại
+            $keepUsers = @("Administrator", "DefaultAccount", "WDAGUtilityAccount")
 
-              # Thêm vào các nhóm cần thiết
-              Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-              Add-LocalGroupMember -Group "Remote Desktop Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-              Add-LocalGroupMember -Group "Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-              
-              # Kích hoạt user
-              Enable-LocalUser -Name "vanmanhgaming"
-              
-              Write-Host "│ ✅ Đã cấp quyền Administrator & RDP" -ForegroundColor Green
-              
-          } catch {
-              Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
-              exit 1
-          }
-          
-          # Lưu thông tin (cẩn trọng nếu repo public)
-          echo "RDP_USER=vanmanhgaming" >> $env:GITHUB_ENV
-          echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
-          echo "$matKhau" > $env:TEMP\rdp_password.txt
-          
-          Write-Host "✅ Tài khoản: vanmanhgaming đã sẵn sàng" -ForegroundColor Green
+            Get-LocalUser | Where-Object {
+                $_.Name -notin $keepUsers
+            } | ForEach-Object {
+                try {
+                    Remove-LocalUser -Name $_.Name -ErrorAction Stop
+                    Write-Host "│ ❌ Đã xóa user: $($_.Name)" -ForegroundColor Green
+                } catch {
+                    Write-Host "│ ⚠️ Không thể xóa user: $($_.Name)" -ForegroundColor Red
+                }
+            }
+
+            # ==============================
+            # TẠO USER MỚI (CHƯA ĐẶT MẬT KHẨU)
+            # ==============================
+            Write-Host ""
+            Write-Host "👤 ĐANG TẠO USER MỚI: vanmanhgaming" -ForegroundColor Yellow
+
+            try {
+                New-LocalUser `
+                    -Name "vanmanhgaming" `
+                    -NoPassword `
+                    -AccountNeverExpires `
+                    -Description "vanmanhgaming Premium Account"
+
+                Write-Host "│ ✅ Đã tạo user (chưa đặt mật khẩu)" -ForegroundColor Green
+            } catch {
+                Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
+                exit 1
+            }
+
+            # ==============================
+            # CẤP QUYỀN ADMIN + RDP
+            # ==============================
+            Write-Host ""
+            Write-Host "🛡️ ĐANG CẤP QUYỀN ADMIN & RDP" -ForegroundColor Yellow
+
+            Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+            Add-LocalGroupMember -Group "Remote Desktop Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+            Add-LocalGroupMember -Group "Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+
+            Enable-LocalUser -Name "vanmanhgaming"
+
+            Write-Host "│ ✅ Quyền Admin & RDP OK" -ForegroundColor Green
+
+            # ==============================
+            # ĐẶT MẬT KHẨU SAU CÙNG
+            # ==============================
+            Write-Host ""
+            Write-Host "🔐 ĐANG ĐẶT MẬT KHẨU" -ForegroundColor Yellow
+
+            if ($env:CUSTOM_RDP_PASS) {
+                $matKhau = $env:CUSTOM_RDP_PASS
+                Write-Host "│ ℹ️ Dùng mật khẩu từ ENV" -ForegroundColor Blue
+            } else {
+                $matKhau = "vanmanhgaming"
+                Write-Host "│ ℹ️ Dùng mật khẩu mặc định" -ForegroundColor Blue
+            }
+
+            $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
+
+            Set-LocalUser `
+                -Name "vanmanhgaming" `
+                -Password $securePass `
+                -PasswordNeverExpires $true
+
+            Write-Host "│ ✅ Đã đặt mật khẩu & không hết hạn" -ForegroundColor Green
+
+            # ==============================
+            # LƯU THÔNG TIN
+            # ==============================
+            echo "RDP_USER=vanmanhgaming" >> $env:GITHUB_ENV
+            echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
+            echo "$matKhau" > "$env:TEMP\rdp_password.txt"
+
+            Write-Host ""
+            Write-Host "🎉 HOÀN TẤT! USER vanmanhgaming SẴN SÀNG RDP" -ForegroundColor Cyan
 
       # TAILSCALE PREMIUM
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
@@ -164,6 +191,34 @@ jobs:
               echo "TAILSCALE_IP=localhost" >> $env:GITHUB_ENV
           }
 
+      - name: 🌐 KIỂM TRA KẾT NỐI ĐẾN TAILSCALE
+        run: |
+          # Kích hoạt Tailscale bằng Auth Key và đặt tên máy theo ID của GitHub Runner
+          Write-Host "🔧 Đang khởi tạo Tailscale..."
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+
+          # Chờ Tailscale cấp địa chỉ IP
+          Write-Host "⏳ Đang chờ Tailscale cấp IP..."
+          $tsIP = $null
+          $retries = 0
+
+          while (-not $tsIP -and $retries -lt 10) {
+              $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+              Start-Sleep -Seconds 5
+              $retries++
+          }
+
+          # Nếu không lấy được địa chỉ IP thì báo lỗi và thoát
+          if (-not $tsIP) {
+              Write-Error "❌ Không thể lấy địa chỉ IP từ Tailscale. Dừng tiến trình."
+              exit 1
+          }
+
+          Write-Host "✅ Đã nhận IP Tailscale: $tsIP" -ForegroundColor Green
+
+          # Xuất IP sang biến môi trường để dùng ở bước tiếp theo
+          echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+
       # KIỂM TRA KẾT NỐI RDP
       - name: KIỂM TRA KẾT NỐI RDP
         shell: pwsh
@@ -175,7 +230,7 @@ jobs:
               exit 1
           }
 
-      # DỌN DẸP
+     # DỌN DẸP
       - name: 🧹 DỌN DẸP FILE TẠM
         if: always()
         run: |
@@ -222,11 +277,7 @@ jobs:
           Write-Host "│ 🔐  Mật khẩu: $matKhau" -ForegroundColor White
           Write-Host "│ ⏰  Thời lượng: $displayTime" -ForegroundColor White
           Write-Host "│ 🕐  Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor White
-          if ($durationInput -eq "Không_Giới_Hạn_(Unlimited)") {
-              Write-Host "│ 🕐  Kết thúc: Không giới hạn" -ForegroundColor White
-          } else {
-              Write-Host "│ 🕐  Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor White
-          }
+          Write-Host "│ 🕐  Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor White
           Write-Host "│ 📍  Port: 3389" -ForegroundColor White
           Write-Host "├───────────────────────────────────────────┤" -ForegroundColor Cyan
           Write-Host "│ 💡  Hướng dẫn:                                     │" -ForegroundColor Cyan
@@ -239,7 +290,7 @@ jobs:
           # Lưu thời gian vào biến môi trường
           echo "TOTAL_MINUTES=$totalMinutes" >> $env:GITHUB_ENV
 
-      # DUY TRÌ PHIÊN LÀM VIỆC ỔN ĐỊNH Và 90 ngày / 24/7
+        # DUY TRÌ PHIÊN LÀM VIỆC ỔN ĐỊNH Và 90 ngày / 24/7
       - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
         shell: pwsh
         run: |
