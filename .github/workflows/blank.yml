@@ -52,9 +52,11 @@ jobs:
           Start-Service TermService
           Write-Host " Cấu hình RDP hoàn tất" -ForegroundColor Green
 
-      # TẠO USER PREMIUM - (tối ưu mật khẩu)
+
+
+
+     # TẠO USER PREMIUM - (tối ưu mật khẩu)
       - name: 👤 TẠO TÀI KHOẢN PREMIUM
-        shell: pwsh
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
@@ -75,11 +77,10 @@ jobs:
           
           # Xóa user cũ nếu tồn tại
           try {
-              Get-LocalUser -Name "vanmanhgaming" -ErrorAction Stop | Out-Null
-              Remove-LocalUser -Name "vanmanhgaming"
+              Remove-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
               Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
           } catch {
-              Write-Host "│ ℹ️ Không có user cũ để xóa" -ForegroundColor Blue
+              Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
           }
           
           # Tạo user mới với đầy đủ quyền
