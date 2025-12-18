@@ -53,74 +53,11 @@ jobs:
           Write-Host " Cấu hình RDP hoàn tất" -ForegroundColor Green
 
       # TẠO USER PREMIUM - (tối ưu mật khẩu)
-      - name: 👤TẠO TÀI KHOẢN PREMIUM
+      - name: 👤 TẠO TÀI KHOẢN PREMIUM
         run: |
-            Write-Host ""
-            Write-Host "🧹 ĐANG XÓA TOÀN BỘ USER CŨ (TRỪ ADMIN MẶC ĐỊNH)" -ForegroundColor Yellow
-
-            # Danh sách user cần giữ lại
-            $keepUsers = @("Administrator", "DefaultAccount", "WDAGUtilityAccount")
-
-            Get-LocalUser | Where-Object {
-                $_.Name -notin $keepUsers
-            } | ForEach-Object {
-                try {
-                    Remove-LocalUser -Name $_.Name -ErrorAction Stop
-                    Write-Host "│ ❌ Đã xóa user: $($_.Name)" -ForegroundColor Green
-                } catch {
-                    Write-Host "│ ⚠️ Không thể xóa user: $($_.Name)" -ForegroundColor Red
-                }
-            }
-
-            # ==============================
-            # TẠO USER MỚI (CHƯA ĐẶT MẬT KHẨU)
-            # ==============================
-            Write-Host ""
-            Write-Host "👤 ĐANG TẠO USER MỚI: vanmanhgaming" -ForegroundColor Yellow
-
-            try {
-                New-LocalUser `
-                    -Name "vanmanhgaming" `
-                    -NoPassword `
-                    -AccountNeverExpires `
-                    -Description "vanmanhgaming Premium Account"
-
-                Write-Host "│ ✅ Đã tạo user (chưa đặt mật khẩu)" -ForegroundColor Green
-            } catch {
-                Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
-                exit 1
-            }
-
-            # ==============================
-            # CẤP QUYỀN ADMIN + RDP
-            # ==============================
-            Write-Host ""
-            Write-Host "🛡️ ĐANG CẤP QUYỀN ADMIN & RDP" -ForegroundColor Yellow
-
-            Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-            Add-LocalGroupMember -Group "Remote Desktop Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-            Add-LocalGroupMember -Group "Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
-
-            Enable-LocalUser -Name "vanmanhgaming"
-
-            Write-Host "│ ✅ Quyền Admin & RDP OK" -ForegroundColor Green
-
-            # ==============================
-            # TẠM TẮT YÊU CẦU MẬT KHẨU PHỨC TẠP
-            # ==============================
-            Write-Host ""
-            Write-Host "⚙️ TẠM TẮT YÊU CẦU MẬT KHẨU PHỨC TẠP" -ForegroundColor Yellow
-
-            secedit /export /cfg "$env:TEMP\secpol.cfg"
-            (Get-Content "$env:TEMP\secpol.cfg") -replace "PasswordComplexity = 1", "PasswordComplexity = 0" | Set-Content "$env:TEMP\secpol.cfg"
-            secedit /configure /db "$env:windir\security\local.sdb" /cfg "$env:TEMP\secpol.cfg" /areas SECURITYPOLICY
-            Remove-Item "$env:TEMP\secpol.cfg" -ErrorAction SilentlyContinue
-
-            Write-Host "│ ✅ Đã tắt yêu cầu mật khẩu phức tạp" -ForegroundColor Green
-
-            # ==============================
-            # ĐẶT MẬT KHẨU SAU CÙNG
-            # ==============================
+          Write-Host ""
+          Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
+          
             Write-Host ""
             Write-Host "🔐 ĐANG ĐẶT MẬT KHẨU" -ForegroundColor Yellow
 
@@ -141,15 +78,57 @@ jobs:
 
             Write-Host "│ ✅ Đã đặt mật khẩu & không hết hạn" -ForegroundColor Green
 
-            # ==============================
-            # LƯU THÔNG TIN
-            # ==============================
-            echo "RDP_USER=vanmanhgaming" >> $env:GITHUB_ENV
-            echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
-            echo "$matKhau" > "$env:TEMP\rdp_password.txt"
+          # Nếu người dùng đặt mật khẩu tùy chỉnh (ví dụ bằng secret) thì ưu tiên dùng
+          if ($env:CUSTOM_RDP_PASS) {
+              $matKhau = $env:CUSTOM_RDP_PASS
+              Write-Host "│ ℹ️  Dùng mật khẩu tùy chỉnh từ env" -ForegroundColor Blue
+          } else {
+              $matKhau = New-PremiumPassword
+          }
 
-            Write-Host ""
-            Write-Host "🎉 HOÀN TẤT! USER vanmanhgaming SẴN SÀNG RDP" -ForegroundColor Cyan
+          $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
+          
+          # Xóa user cũ nếu tồn tại
+          try {
+              Remove-LocalUser -Name "vanmanhgaming" -ErrorAction SilentlyContinue
+              Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
+          } catch {
+              Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
+          }
+          
+          # Tạo user mới với đầy đủ quyền
+          try {
+              New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account"
+              Write-Host "│ ✅ Đã tạo user mới" -ForegroundColor Green
+              
+              # Đặt password không bao giờ hết hạn (dùng Set-LocalUser nếu cần)
+              try {
+                  Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
+              } catch {
+                  # Nếu môi trường không hỗ trợ Set-LocalUser, bỏ qua an toàn
+              }
+
+              # Thêm vào các nhóm cần thiết
+              Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+              Add-LocalGroupMember -Group "Users" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
+              
+              # Kích hoạt user
+              Enable-LocalUser -Name "vanmanhgaming"
+              
+              Write-Host "│ ✅ Đã cấp quyền Administrator & RDP" -ForegroundColor Green
+              
+          } catch {
+              Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
+              exit 1
+          }
+          
+          # Lưu thông tin (cẩn trọng nếu repo public)
+          echo "RDP_USER=vanmanhgaming" >> $env:GITHUB_ENV
+          echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
+          echo "$matKhau" > $env:TEMP\rdp_password.txt
+          
+          Write-Host "✅ Tài khoản: vanmanhgaming đã sẵn sàng" -ForegroundColor Green
 
       # TAILSCALE PREMIUM
       - name: 🌐 THIẾT LẬP MẠNG PREMIUM
