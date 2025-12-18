@@ -87,9 +87,12 @@ jobs:
               New-LocalUser -Name "vanmanhgaming" -Password $securePass -AccountNeverExpires -Description "vanmanhgaming Premium Account"
               Write-Host "│ ✅ Đã tạo user mới" -ForegroundColor Green
               
-              # Đặt password không bao giờ hết hạn
-              Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true
-              Write-Host "│ ✅ Đã đặt mật khẩu không hết hạn" -ForegroundColor Green
+              # Đặt password không bao giờ hết hạn (dùng Set-LocalUser nếu cần)
+              try {
+                  Set-LocalUser -Name "vanmanhgaming" -PasswordNeverExpires $true -ErrorAction SilentlyContinue
+              } catch {
+                  # Nếu môi trường không hỗ trợ Set-LocalUser, bỏ qua an toàn
+              }
 
               # Thêm vào các nhóm cần thiết
               Add-LocalGroupMember -Group "Administrators" -Member "vanmanhgaming" -ErrorAction SilentlyContinue
