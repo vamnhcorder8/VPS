@@ -21,8 +21,6 @@ on:
           - '5_Giờ_(300m)'
           - '5_Giờ_30_Phút_(330m)'
           - '6_Giờ_(360m)'
-          - 'Không_Giới_Hạn_(Unlimited)'
-
 jobs:
   Vanmanhgaming-RDP-Setup:
     runs-on: windows-latest
@@ -58,6 +56,13 @@ jobs:
         run: |
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN vanmanhgaming" -ForegroundColor Yellow
+          
+          # Disable password complexity
+          Write-Host "│ ℹ️  Disabling password complexity requirements" -ForegroundColor Blue
+          secedit /export /cfg c:\sec.cfg
+          (Get-Content c:\sec.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content c:\sec.cfg
+          secedit /configure /db $env:windir\security\new.sdb /cfg c:\sec.cfg /areas SECURITYPOLICY
+          Remove-Item c:\sec.cfg -Force -ErrorAction SilentlyContinue
           
           $matKhau = "vanmanhgaming"
           Write-Host "│ ℹ️  Mật khẩu cố định không giới hạn: $matKhau" -ForegroundColor Blue
@@ -201,7 +206,6 @@ jobs:
               "5_Giờ_(300m)"               { $totalMinutes = 300; $displayTime = "5 giờ" }
               "5_Giờ_30_Phút_(330m)"       { $totalMinutes = 330; $displayTime = "5 giờ 30 phút" }
               "6_Giờ_(360m)"               { $totalMinutes = 360; $displayTime = "6 giờ" }
-              "Không_Giới_Hạn_(Unlimited)" { $totalMinutes = 129600; $displayTime = "Không giới hạn" }
           }
           
           # Tính thời gian chính xác
