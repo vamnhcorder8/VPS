@@ -53,7 +53,7 @@ jobs:
           Write-Host " Cấu hình RDP hoàn tất" -ForegroundColor Green
 
       # TẠO USER PREMIUM - (tối ưu mật khẩu)
-      - name: 👤 RESET & TẠO TÀI KHOẢN PREMIUM
+      - name: 👤TẠO TÀI KHOẢN PREMIUM
         run: |
             Write-Host ""
             Write-Host "🧹 ĐANG XÓA TOÀN BỘ USER CŨ (TRỪ ADMIN MẶC ĐỊNH)" -ForegroundColor Yellow
@@ -104,6 +104,19 @@ jobs:
             Enable-LocalUser -Name "vanmanhgaming"
 
             Write-Host "│ ✅ Quyền Admin & RDP OK" -ForegroundColor Green
+
+            # ==============================
+            # TẠM TẮT YÊU CẦU MẬT KHẨU PHỨC TẠP
+            # ==============================
+            Write-Host ""
+            Write-Host "⚙️ TẠM TẮT YÊU CẦU MẬT KHẨU PHỨC TẠP" -ForegroundColor Yellow
+
+            secedit /export /cfg "$env:TEMP\secpol.cfg"
+            (Get-Content "$env:TEMP\secpol.cfg") -replace "PasswordComplexity = 1", "PasswordComplexity = 0" | Set-Content "$env:TEMP\secpol.cfg"
+            secedit /configure /db "$env:windir\security\local.sdb" /cfg "$env:TEMP\secpol.cfg" /areas SECURITYPOLICY
+            Remove-Item "$env:TEMP\secpol.cfg" -ErrorAction SilentlyContinue
+
+            Write-Host "│ ✅ Đã tắt yêu cầu mật khẩu phức tạp" -ForegroundColor Green
 
             # ==============================
             # ĐẶT MẬT KHẨU SAU CÙNG
